@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>راهنمای ساخت سایت با جنگو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+    :root{
+        --bg:#ffffff;
+        --surface:#f6f8f7;
+        --surface-2:#eef2f0;
+        --border:#e4e9e6;
+        --text:#151d19;
+        --text-muted:#5c6d64;
+        --text-faint:#93a29a;
+        --accent:#0e7a4d;
+        --accent-soft:#e6f5ee;
+        --accent-ink:#ffffff;
+        --warn:#a9660b;
+        --warn-soft:#fdf3e2;
+        --code-bg:#12201a;
+        --code-text:#c9f0d8;
+        --maxw:1180px;
+    }
+    *{box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{
+        margin:0;
+        background:var(--bg);
+        color:var(--text);
+        font-family:"Vazirmatn", Tahoma, sans-serif;
+        line-height:1.85;
+        font-size:16px;
+    }
+    ::selection{background:var(--accent-soft); color:var(--accent);}
+
+    #progress{
+        position:fixed; top:0; right:0; left:0; height:3px;
+        background:var(--accent); width:0%; z-index:1000;
+        transition:width .1s linear;
+    }
+
+    .topbar{
+        position:sticky; top:0; z-index:100;
+        background:rgba(255,255,255,0.9);
+        backdrop-filter:blur(10px);
+        border-bottom:1px solid var(--border);
+        display:flex; align-items:center; justify-content:space-between;
+        padding:14px 28px;
+    }
+    .brand{
+        display:flex; align-items:center; gap:10px;
+        font-weight:700; font-size:1rem; color:var(--text);
+        text-decoration:none;
+    }
+    .brand .dot{
+        width:10px; height:10px; border-radius:50%;
+        background:var(--accent);
+    }
+    .topbar-actions{display:flex; align-items:center; gap:14px;}
+    .home-link{
+        color:var(--text-muted); text-decoration:none; font-size:.92rem;
+        border:1px solid var(--border); padding:8px 16px; border-radius:999px;
+        transition:.2s;
+    }
+    .home-link:hover{color:var(--accent); border-color:var(--accent);}
+    .toc-toggle{
+        display:none;
+        background:var(--surface); border:1px solid var(--border);
+        color:var(--text); border-radius:10px; width:40px; height:40px;
+        align-items:center; justify-content:center; cursor:pointer;
+    }
+
+    .hero{
+        max-width:var(--maxw); margin:0 auto;
+        padding:72px 28px 48px;
+    }
+    .hero-eyebrow{
+        color:var(--accent); font-family:"JetBrains Mono", monospace;
+        font-size:.82rem; margin-bottom:18px; direction:ltr; text-align:right;
+        display:inline-block; font-weight:600;
+    }
+    .hero h1{
+        font-size:clamp(2.1rem, 4.2vw, 3.2rem);
+        font-weight:800; margin:0 0 18px; letter-spacing:-0.01em;
+        color:#0a1510;
+    }
+    .hero p.lead{
+        color:var(--text-muted); font-size:1.15rem; max-width:640px; margin:0 0 32px;
+    }
+    .stat-row{display:flex; gap:14px; flex-wrap:wrap;}
+    .stat{
+        background:var(--surface); border:1px solid var(--border);
+        border-radius:12px; padding:14px 20px; min-width:120px;
+    }
+    .stat b{display:block; font-size:1.4rem; color:var(--accent); font-weight:700;}
+    .stat span{font-size:.82rem; color:var(--text-faint);}
+
+    .layout{
+        max-width:var(--maxw); margin:0 auto;
+        display:flex; gap:40px; align-items:flex-start;
+        padding:0 28px 100px;
+    }
+    aside.toc{
+        width:260px; flex-shrink:0;
+        position:sticky; top:76px;
+        max-height:calc(100vh - 100px);
+        overflow-y:auto;
+        padding-inline-start:4px;
+    }
+    aside.toc::-webkit-scrollbar{width:5px;}
+    aside.toc::-webkit-scrollbar-thumb{background:var(--border); border-radius:10px;}
+    .toc-label{
+        font-size:.75rem; color:var(--text-faint); text-transform:uppercase;
+        letter-spacing:.08em; margin-bottom:14px; font-family:"JetBrains Mono", monospace;
+    }
+    .toc-list{list-style:none; margin:0; padding:0; border-right:1px solid var(--border);}
+    .toc-list a{
+        display:block; padding:8px 18px; font-size:.9rem;
+        color:var(--text-faint); text-decoration:none;
+        border-right:2px solid transparent; margin-right:-1px;
+        transition:.15s;
+    }
+    .toc-list a:hover{color:var(--text);}
+    .toc-list a.active{
+        color:var(--accent); border-right-color:var(--accent);
+        background:linear-gradient(to left, transparent, var(--accent-soft));
+        font-weight:600;
+    }
+
+    main.content{flex:1; min-width:0;}
+
+    section.step{
+        padding:38px 0; border-bottom:1px solid var(--border);
+        scroll-margin-top:90px;
+    }
+    section.step:last-of-type{border-bottom:none;}
+    .step-num{
+        font-family:"JetBrains Mono", monospace; color:var(--accent);
+        font-size:.9rem; font-weight:600; display:block; margin-bottom:6px;
+    }
+    section.step h2{
+        font-size:1.5rem; font-weight:700; margin:0 0 16px; color:#0a1510;
+    }
+    section.step h3{
+        font-size:1.05rem; font-weight:600; color:var(--text); margin:24px 0 8px;
+    }
+    section.step p{color:#3d4a44; margin:0 0 14px;}
+    section.step p b{color:var(--text);}
+    section.step a{color:var(--accent);}
+
+    code.inline{
+        background:var(--surface-2); color:#0a5c38;
+        font-family:"JetBrains Mono", monospace; font-size:.86em;
+        padding:2px 7px; border-radius:5px; direction:ltr; display:inline-block;
+        unicode-bidi:isolate; border:1px solid var(--border);
+    }
+
+    .code-window{
+        background:var(--code-bg); border-radius:12px; overflow:hidden;
+        margin:16px 0; direction:ltr;
+        box-shadow:0 8px 24px -12px rgba(15,40,28,0.35);
+    }
+    .code-window .cw-head{
+        display:flex; align-items:center; justify-content:space-between;
+        padding:9px 14px; background:#0d1912;
+        border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .cw-dots{display:flex; gap:6px;}
+    .cw-dots span{width:9px; height:9px; border-radius:50%; background:#26382d;}
+    .copy-btn{
+        background:transparent; border:1px solid rgba(255,255,255,0.12); color:#82a394;
+        font-family:"JetBrains Mono", monospace; font-size:.72rem;
+        padding:4px 11px; border-radius:7px; cursor:pointer; transition:.15s;
+    }
+    .copy-btn:hover{color:var(--code-text); border-color:rgba(255,255,255,0.3);}
+    .code-window pre{
+        margin:0; padding:16px 18px; overflow-x:auto;
+        font-family:"JetBrains Mono", monospace; font-size:.87rem;
+        color:var(--code-text); line-height:1.7;
+    }
+    .code-window pre code{background:none; padding:0; color:inherit; border:none;}
+
+    .tree{
+        background:var(--surface); border:1px solid var(--border); border-radius:12px;
+        padding:18px 22px; direction:ltr; text-align:left;
+        font-family:"JetBrains Mono", monospace; font-size:.85rem;
+        white-space:pre; overflow-x:auto; color:#425049; margin:14px 0;
+    }
+    .tree .dim{color:var(--text-faint);}
+    .tree .hl{color:var(--accent); font-weight:600;}
+
+    table{width:100%; border-collapse:collapse; margin:16px 0; font-size:.92rem;}
+    th,td{padding:11px 16px; text-align:right; border-bottom:1px solid var(--border);}
+    th{color:var(--text-faint); font-weight:600; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em;}
+    td code.inline{white-space:nowrap;}
+
+    .note{
+        background:var(--warn-soft); border:1px solid #f0dcb3;
+        border-radius:10px; padding:16px 20px; margin:16px 0; font-size:.94rem;
+        color:#5a4321;
+    }
+    .note b{color:var(--warn);}
+
+    .checklist{list-style:none; padding:0; margin:16px 0;}
+    .checklist li{
+        display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; color:#3d4a44;
+    }
+    .checklist li::before{
+        content:"✓"; color:var(--accent); font-weight:700; flex-shrink:0;
+        background:var(--accent-soft); width:20px; height:20px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center; font-size:.72rem;
+        margin-top:2px;
+    }
+
+    footer.done{
+        text-align:center; padding:60px 28px; border-top:1px solid var(--border);
+        max-width:var(--maxw); margin:0 auto;
+    }
+    footer.done h3{font-size:1.3rem; margin-bottom:10px; color:#0a1510;}
+    footer.done p{color:var(--text-muted); margin-bottom:24px;}
+    .cta-back{
+        display:inline-flex; align-items:center; gap:8px;
+        background:var(--accent); color:#fff; font-weight:700;
+        text-decoration:none; padding:12px 26px; border-radius:999px; font-size:.95rem;
+        box-shadow:0 8px 20px -8px rgba(14,122,77,0.5);
+    }
+
+    @media (max-width: 880px){
+        aside.toc{
+            position:fixed; top:0; bottom:0; right:0; left:0;
+            width:auto; max-height:none; background:var(--bg);
+            z-index:200; padding:90px 28px 28px; display:none;
+        }
+        aside.toc.open{display:block;}
+        .toc-toggle{display:flex;}
+        .layout{flex-direction:column; padding:0 20px 60px;}
+        .hero{padding:48px 20px 32px;}
+    }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<div class="topbar">
+    <a href="{% url 'home' %}" class="brand"><span class="dot"></span> پروژه جنگو</a>
+    <div class="topbar-actions">
+        <a href="{% url 'home' %}" class="home-link">صفحه‌ی اصلی</a>
+        <button class="toc-toggle" id="tocToggle" aria-label="فهرست">☰</button>
+    </div>
+</div>
+
+<div class="hero">
+    <span class="hero-eyebrow">DJANGO + VENV · راهنمای عملی</span>
+    <h1>ساخت یک سایت جنگو، از پوشه‌ی خالی تا سرور روشن</h1>
+    <p class="lead">همه‌ی دستورها، همه‌ی پوشه‌ها، و دلیل هر تصمیم — طوری نوشته شده که بدون هیچ پیش‌زمینه‌ای بتونی دنبالش کنی و سایتت بالا بیاد.</p>
+    <div class="stat-row">
+        <div class="stat"><b>۱۱</b><span>مرحله</span></div>
+        <div class="stat"><b>~۱۵ دقیقه</b><span>زمان لازم</span></div>
+        <div class="stat"><b>مبتدی</b><span>سطح</span></div>
+        <div class="stat"><b>ویندوز / مک / لینوکس</b><span>سازگاری</span></div>
+    </div>
+</div>
+
+<div class="layout">
+    <aside class="toc" id="tocSidebar">
+        <div class="toc-label">فهرست مراحل</div>
+        <ul class="toc-list" id="tocList">
+            <li><a href="#prereq">پیش‌نیاز</a></li>
+            <li><a href="#step-1">۱. ساخت پوشه‌ی پروژه</a></li>
+            <li><a href="#step-2">۲. ساخت venv</a></li>
+            <li><a href="#step-3">۳. فعال‌سازی venv</a></li>
+            <li><a href="#step-4">۴. نصب جنگو</a></li>
+            <li><a href="#step-5">۵. ساخت پروژه</a></li>
+            <li><a href="#step-6">۶. ساخت اپلیکیشن</a></li>
+            <li><a href="#step-7">۷. معرفی اپ</a></li>
+            <li><a href="#step-8">۸. ساخت صفحه</a></li>
+            <li><a href="#step-9">۹. دیتابیس</a></li>
+            <li><a href="#step-10">۱۰. اجرای سرور</a></li>
+            <li><a href="#step-11">۱۱. کاربر ادمین</a></li>
+            <li><a href="#structure">ساختار نهایی</a></li>
+            <li><a href="#commands">خلاصه‌ی دستورات</a></li>
+            <li><a href="#rerun">دفعات بعدی</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+
+        <section class="step" id="prereq">
+            <h2>پیش‌نیاز: پایتون نصب باشه</h2>
+            <p>توی ترمینال (cmd یا PowerShell) این دستور رو بزن:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python --version</code></pre>
+            </div>
+            <p>اگه نسخه‌ای مثل <code class="inline">Python 3.12.0</code> نشون داد، یعنی نصبه. اگه نه، از <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org</a> نصبش کن — موقع نصب حتماً تیک <b>Add Python to PATH</b> رو بزن.</p>
+        </section>
+
+        <section class="step" id="step-1">
+            <span class="step-num">STEP 01</span>
+            <h2>ساخت پوشه‌ی پروژه</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>mkdir django_project
+cd django_project</code></pre>
+            </div>
+            <p>این یه پوشه‌ی خالیه که از این به بعد همه‌چیز داخلش ساخته می‌شه.</p>
+        </section>
+
+        <section class="step" id="step-2">
+            <span class="step-num">STEP 02</span>
+            <h2>ساخت محیط مجازی (venv)</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python -m venv venv</code></pre>
+            </div>
+            <p><b>چه اتفاقی افتاد؟</b> یه پوشه به اسم <code class="inline">venv</code> ساخته شد؛ یه کپی مجزا از پایتون. هر پکیجی که از این به بعد نصب کنی، فقط داخل همین پوشه می‌ره، نه روی کل سیستم.</p>
+            <div class="tree">venv/
+├── <span class="hl">Scripts/</span> <span class="dim">(ویندوز) یا bin/ (لینوکس/مک) → فایل‌های فعال‌سازی و pip</span>
+├── <span class="hl">Lib/</span>     <span class="dim">→ پکیج‌های نصب‌شده اینجا می‌رن</span>
+└── pyvenv.cfg</div>
+        </section>
+
+        <section class="step" id="step-3">
+            <span class="step-num">STEP 03</span>
+            <h2>فعال‌سازی venv</h2>
+            <h3>ویندوز (PowerShell)</h3>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>venv\Scripts\Activate.ps1</code></pre>
+            </div>
+            <h3>ویندوز (cmd)</h3>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>venv\Scripts\activate.bat</code></pre>
+            </div>
+            <h3>لینوکس / مک</h3>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>source venv/bin/activate</code></pre>
+            </div>
+            <p>بعد از این دستور، باید <code class="inline">(venv)</code> رو کنار خط فرمانت ببینی. یعنی از الان <code class="inline">python</code> و <code class="inline">pip</code> از داخل همین پوشه اجرا می‌شن، نه از سیستم.</p>
+            <div class="note"><b>⚠ خطای اجرای اسکریپت در PowerShell؟</b> این دستور رو یک‌بار بزن و دوباره امتحان کن:
+                <div class="code-window" style="margin-top:10px;">
+                    <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                    <pre><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section class="step" id="step-4">
+            <span class="step-num">STEP 04</span>
+            <h2>نصب جنگو</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>pip install django</code></pre>
+            </div>
+            <p>برای اینکه بعداً دقیقاً بدونی چه نسخه‌ای نصب کردی:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>pip freeze &gt; requirements.txt</code></pre>
+            </div>
+            <p>این دستور فایل <code class="inline">requirements.txt</code> رو با محتوایی شبیه این می‌سازه:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>asgiref==3.12.1
+Django==6.1.1
+sqlparse==0.6.0</code></pre>
+            </div>
+        </section>
+
+        <section class="step" id="step-5">
+            <span class="step-num">STEP 05</span>
+            <h2>ساخت پروژه‌ی جنگو</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>django-admin startproject mysite .</code></pre>
+            </div>
+            <p>نقطه‌ی آخر (<code class="inline">.</code>) مهمه — یعنی «همین‌جا بساز، پوشه‌ی تو در تو نساز».</p>
+            <div class="tree">django_project/
+├── manage.py
+└── mysite/
+    ├── __init__.py
+    ├── settings.py
+    ├── urls.py
+    ├── asgi.py
+    └── wsgi.py</div>
+            <table>
+                <tr><th>فایل</th><th>کارش چیه</th></tr>
+                <tr><td><code class="inline">manage.py</code></td><td>ابزار خط‌فرمان جنگو — همه‌ی دستورات با این اجرا می‌شن</td></tr>
+                <tr><td><code class="inline">settings.py</code></td><td>تنظیمات کل پروژه: دیتابیس، زبان، اپ‌های نصب‌شده</td></tr>
+                <tr><td><code class="inline">urls.py</code></td><td>نقشه‌ی مسیرها — هر آدرس به کدوم بخش کد وصله</td></tr>
+                <tr><td><code class="inline">wsgi.py / asgi.py</code></td><td>مربوط به اجرای سرور در پروداکشن — فعلاً دست نزن</td></tr>
+            </table>
+        </section>
+
+        <section class="step" id="step-6">
+            <span class="step-num">STEP 06</span>
+            <h2>ساخت اپلیکیشن (app)</h2>
+            <p>هر پروژه‌ی جنگو از چند «اپ» کوچیک تشکیل می‌شه (یکی برای وبلاگ، یکی برای فروشگاه...). بیا اولین اپ رو بسازیم:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python manage.py startapp core</code></pre>
+            </div>
+            <div class="tree">core/
+├── migrations/
+│   └── __init__.py
+├── __init__.py
+├── admin.py
+├── apps.py
+├── models.py
+├── tests.py
+└── views.py</div>
+            <table>
+                <tr><th>فایل</th><th>کارش چیه</th></tr>
+                <tr><td><code class="inline">models.py</code></td><td>تعریف جدول‌های دیتابیس (مدل «مقاله»، «محصول» و...)</td></tr>
+                <tr><td><code class="inline">views.py</code></td><td>منطق هر صفحه — چه دیتایی نشون داده بشه</td></tr>
+                <tr><td><code class="inline">admin.py</code></td><td>ثبت مدل‌ها توی پنل مدیریت</td></tr>
+                <tr><td><code class="inline">migrations/</code></td><td>تاریخچه‌ی تغییرات دیتابیس</td></tr>
+                <tr><td><code class="inline">tests.py</code></td><td>تست‌های خودکار</td></tr>
+            </table>
+        </section>
+
+        <section class="step" id="step-7">
+            <span class="step-num">STEP 07</span>
+            <h2>معرفی اپ به پروژه</h2>
+            <p>فایل <code class="inline">mysite/settings.py</code> رو باز کن و اپ رو به <code class="inline">INSTALLED_APPS</code> اضافه کن:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'core',   # ← این خط رو اضافه کن
+]</code></pre>
+            </div>
+        </section>
+
+        <section class="step" id="step-8">
+            <span class="step-num">STEP 08</span>
+            <h2>ساخت یه صفحه (view + template)</h2>
+
+            <h3>۸.۱ — ویو رو بنویس</h3>
+            <p>توی <code class="inline">core/views.py</code>:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>from django.shortcuts import render
+
+def home(request):
+    return render(request, "core/home.html")</code></pre>
+            </div>
+
+            <h3>۸.۲ — پوشه‌ی قالب (template) بساز</h3>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>mkdir core\templates\core     # ویندوز
+mkdir -p core/templates/core  # لینوکس/مک</code></pre>
+            </div>
+            <p>فایل <code class="inline">core/templates/core/home.html</code> رو بساز:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="fa" dir="rtl"&gt;
+&lt;head&gt;&lt;meta charset="UTF-8"&gt;&lt;title&gt;سایت من&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;سلام دنیا! جنگو کار می‌کنه 🎉&lt;/h1&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+            </div>
+
+            <h3>۸.۳ — مسیر رو وصل کن</h3>
+            <p>توی <code class="inline">mysite/urls.py</code>:</p>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>from django.contrib import admin
+from django.urls import path
+from core.views import home
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', home, name='home'),
+]</code></pre>
+            </div>
+        </section>
+
+        <section class="step" id="step-9">
+            <span class="step-num">STEP 09</span>
+            <h2>ساخت دیتابیس (migrate)</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python manage.py migrate</code></pre>
+            </div>
+            <p>این دستور جدول‌های پیش‌فرض جنگو (کاربران، سشن‌ها و...) رو توی فایل <code class="inline">db.sqlite3</code> می‌سازه.</p>
+        </section>
+
+        <section class="step" id="step-10">
+            <span class="step-num">STEP 10</span>
+            <h2>اجرای سرور</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python manage.py runserver</code></pre>
+            </div>
+            <p>حالا برو به مرورگر: <code class="inline">http://127.0.0.1:8000/</code></p>
+        </section>
+
+        <section class="step" id="step-11">
+            <span class="step-num">STEP 11</span>
+            <h2>ساخت کاربر ادمین (اختیاری)</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>python manage.py createsuperuser</code></pre>
+            </div>
+            <p>یوزرنیم/ایمیل/پسورد رو وارد کن، بعد برو به <code class="inline">http://127.0.0.1:8000/admin/</code></p>
+        </section>
+
+        <section class="step" id="structure">
+            <h2>ساختار نهایی پوشه‌ها</h2>
+            <div class="tree">django_project/
+├── <span class="hl">venv/</span>          <span class="dim">← محیط مجازی — هیچ‌وقت دستی داخلش دست نزن</span>
+├── db.sqlite3     <span class="dim">← دیتابیس (بعد از migrate ساخته می‌شه)</span>
+├── manage.py
+├── requirements.txt
+├── mysite/        <span class="dim">← تنظیمات اصلی پروژه</span>
+│   ├── settings.py
+│   ├── urls.py
+│   ├── wsgi.py
+│   └── asgi.py
+└── core/          <span class="dim">← اپلیکیشن</span>
+    ├── models.py
+    ├── views.py
+    ├── admin.py
+    ├── migrations/
+    └── templates/core/home.html</div>
+        </section>
+
+        <section class="step" id="commands">
+            <h2>خلاصه‌ی همه‌ی دستورات پشت‌سرهم</h2>
+            <div class="code-window">
+                <div class="cw-head"><div class="cw-dots"><span></span><span></span><span></span></div><button class="copy-btn" onclick="copyCode(this)">کپی</button></div>
+                <pre><code>mkdir django_project
+cd django_project
+python -m venv venv
+source venv/bin/activate        # یا venv\Scripts\activate در ویندوز
+pip install django
+pip freeze &gt; requirements.txt
+django-admin startproject mysite .
+python manage.py startapp core
+# اضافه کردن 'core' به INSTALLED_APPS در settings.py
+# نوشتن view، template و url طبق مرحله‌ی ۸
+python manage.py migrate
+python manage.py runserver</code></pre>
+            </div>
+        </section>
+
+        <section class="step" id="rerun" style="border-bottom:none;">
+            <h2>هر بار که دوباره خواستی روی پروژه کار کنی</h2>
+            <p>نه ساخت دوباره‌ی venv، نه نصب دوباره‌ی جنگو — فقط این دوتا کافیه:</p>
+            <ul class="checklist">
+                <li>فعال‌سازی venv: <code class="inline">source venv/bin/activate</code> (یا <code class="inline">venv\Scripts\activate</code>)</li>
+                <li>اجرای سرور: <code class="inline">python manage.py runserver</code></li>
+            </ul>
+        </section>
+
+    </main>
+</div>
+
+<footer class="done">
+    <h3>همین بود 🎉</h3>
+    <p>حالا یه پروژه‌ی جنگوی کامل و در حال اجرا داری.</p>
+    <a href="{% url 'home' %}" class="cta-back">بازگشت به صفحه‌ی اصلی</a>
+</footer>
+
+<script>
+    const progress = document.getElementById('progress');
+    function updateProgress(){
+        const h = document.documentElement;
+        const scrolled = h.scrollTop;
+        const height = h.scrollHeight - h.clientHeight;
+        progress.style.width = (height > 0 ? (scrolled/height)*100 : 0) + '%';
+    }
+    document.addEventListener('scroll', updateProgress);
+    updateProgress();
+
+    function copyCode(btn){
+        const code = btn.closest('.code-window').querySelector('code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            const old = btn.textContent;
+            btn.textContent = 'کپی شد ✓';
+            setTimeout(() => btn.textContent = old, 1400);
+        });
+    }
+
+    const links = document.querySelectorAll('#tocList a');
+    const sections = [...document.querySelectorAll('section.step')];
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const id = entry.target.getAttribute('id');
+            const link = document.querySelector(`#tocList a[href="#${id}"]`);
+            if(!link) return;
+            if(entry.isIntersecting){
+                links.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+
+    const tocSidebar = document.getElementById('tocSidebar');
+    const tocToggle = document.getElementById('tocToggle');
+    tocToggle.addEventListener('click', () => tocSidebar.classList.toggle('open'));
+    links.forEach(l => l.addEventListener('click', () => tocSidebar.classList.remove('open')));
+</script>
+
+</body>
+</html>
