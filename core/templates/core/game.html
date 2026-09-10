@@ -1202,8 +1202,8 @@ function updateMovement(delta) {
     const sprinting = !!keys['ShiftLeft'];
     const speed = (sprinting ? 9.5 : 5.8) * delta;
     let moveX = 0, moveZ = 0;
-    if (keys['KeyW']) moveZ -= 1;
-    if (keys['KeyS']) moveZ += 1;
+    if (keys['KeyW']) moveZ += 1;
+    if (keys['KeyS']) moveZ -= 1;
     if (keys['KeyA']) moveX -= 1;
     if (keys['KeyD']) moveX += 1;
     if (moveX === 0 && moveZ === 0) return;
