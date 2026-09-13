@@ -304,7 +304,6 @@ function init() {
     buildObstacles();
     buildClouds();
     buildTrees(45);
-    loadSiteAMap();
 
     raycaster = new THREE.Raycaster();
     clock = new THREE.Clock();
@@ -333,6 +332,8 @@ function init() {
     updateHUD();
     animate();
     startPeriodicResync();
+
+    try { loadSiteAMap(); } catch (e) { console.error('site-a map failed to load:', e); }
 }
 
 function attachWeaponModel() {
