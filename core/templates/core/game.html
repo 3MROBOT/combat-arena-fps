@@ -302,8 +302,9 @@ function init() {
 
     buildArenaWalls();
     buildObstacles();
-    buildTrees(50);
     buildClouds();
+    buildTrees(45);
+    loadSiteAMap();
 
     raycaster = new THREE.Raycaster();
     clock = new THREE.Clock();
@@ -372,11 +373,107 @@ function buildObstacles() {
         const size = 1.6 + Math.random() * 1.2;
         const crate = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), crateMat);
         const angle = Math.random() * Math.PI * 2;
-        const dist = 6 + Math.random() * (arenaRadius - 14);
+        const dist = 20 + Math.random() * (arenaRadius - 28);
         crate.position.set(Math.cos(angle) * dist, size / 2, Math.sin(angle) * dist);
         crate.castShadow = true; crate.receiveShadow = true;
         scene.add(crate);
         obstacles.push({ mesh: crate, radius: size * 0.7 });
+    }
+}
+
+function makeHouse(width, depth, wallH) {
+    const group = new THREE.Group();
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd8c9a8, roughness: 0.9 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x6b4a35, roughness: 0.8 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x7a3b32, roughness: 0.75 });
+    const t = 0.3;
+    const doorW = 1.7;
+    const boxes = []; // wall colliders in LOCAL house coordinates
+
+    function addWall(cx, cz, w, d) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), wallMat);
+        wall.position.set(cx, wallH / 2, cz);
+        wall.castShadow = true; wall.receiveShadow = true;
+        group.add(wall);
+        boxes.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+    }
+
+    // north / east / west walls solid; south wall has a doorway gap
+    addWall(0, -depth / 2, width, t);
+    addWall(-width / 2, 0, t, depth);
+    addWall(width / 2, 0, t, depth);
+    const segLen = (width - doorW) / 2;
+    if (segLen > 0.3) {
+        addWall(-(doorW / 2 + segLen / 2), depth / 2, segLen, t);
+        addWall((doorW / 2 + segLen / 2), depth / 2, segLen, t);
+    } else {
+        addWall(0, depth / 2, width, t); // too small for a doorway, just close it
+    }
+
+    // corner trim posts for a bit of visual detail
+    [[-width / 2, -depth / 2], [width / 2, -depth / 2], [-width / 2, depth / 2], [width / 2, depth / 2]].forEach(([x, z]) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, wallH, 0.32), trimMat);
+        post.position.set(x, wallH / 2, z);
+        post.castShadow = true;
+        group.add(post);
+    });
+
+    // gabled roof: two sloped panels meeting at a ridge
+    const gableH = 1.6;
+    const slopeLen = Math.sqrt((depth / 2 + 0.5) * (depth / 2 + 0.5) + gableH * gableH);
+    const slopeAngle = Math.atan2(gableH, depth / 2 + 0.5);
+    const panelGeo = new THREE.BoxGeometry(width + 0.6, 0.12, slopeLen);
+
+    const panelA = new THREE.Mesh(panelGeo, roofMat);
+    panelA.position.set(0, wallH + gableH / 2, -depth / 4);
+    panelA.rotation.x = Math.PI / 2 - slopeAngle;
+    panelA.castShadow = true; panelA.receiveShadow = true;
+    group.add(panelA);
+
+    const panelB = new THREE.Mesh(panelGeo, roofMat);
+    panelB.position.set(0, wallH + gableH / 2, depth / 4);
+    panelB.rotation.x = -(Math.PI / 2 - slopeAngle);
+    panelB.castShadow = true; panelB.receiveShadow = true;
+    group.add(panelB);
+
+    return { group, boxes };
+}
+
+function buildVillage(count) {
+    const placed = [];
+    for (let i = 0; i < count; i++) {
+        const width = 6 + Math.random() * 4;
+        const depth = 6 + Math.random() * 4;
+        const wallH = 3 + Math.random() * 0.6;
+
+        let x, z, ok, tries = 0;
+        do {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 8 + Math.random() * Math.min(arenaRadius - 20, 30);
+            x = Math.cos(angle) * dist;
+            z = Math.sin(angle) * dist;
+            ok = placed.every(p => Math.hypot(x - p.x, z - p.z) > (p.r + Math.max(width, depth) / 2 + 4));
+            tries++;
+        } while (!ok && tries < 20);
+        placed.push({ x, z, r: Math.max(width, depth) / 2 });
+
+        const { group, boxes } = makeHouse(width, depth, wallH);
+        group.position.set(x, 0, z);
+        group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
+        scene.add(group);
+
+        // rotate/translate each local collider box into world space
+        const cos = Math.cos(group.rotation.y), sin = Math.sin(group.rotation.y);
+        boxes.forEach(b => {
+            const corners = [
+                [b.minX, b.minZ], [b.maxX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.maxZ],
+            ].map(([lx, lz]) => [x + lx * cos - lz * sin, z + lx * sin + lz * cos]);
+            const xs = corners.map(c => c[0]), zs = corners.map(c => c[1]);
+            obstacles.push({
+                box: { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) },
+                mesh: { position: { x: x, z: z } }, // harmless fallback, never used since .box is checked first
+            });
+        });
     }
 }
 
@@ -395,7 +492,7 @@ function buildTrees(count) {
     const dummy = new THREE.Object3D();
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 16 + Math.random() * (arenaRadius - 24);
+        const dist = 24 + Math.random() * (arenaRadius - 32);
         const x = Math.cos(angle) * dist, z = Math.sin(angle) * dist;
         const scale = 0.85 + Math.random() * 0.6;
         const rotY = Math.random() * Math.PI * 2;
@@ -417,6 +514,117 @@ function buildTrees(count) {
     scene.add(trunkMesh, leavesMesh);
 }
 
+// ---------- Real Kenney (CC0) environment props ----------
+const KENNEY_SCALE = 4.5;
+const KENNEY_BUILDING_URLS = [
+    "{% static 'core/models/kenney/city-suburban/building-type-a.glb' %}",
+    "{% static 'core/models/kenney/city-suburban/building-type-d.glb' %}",
+    "{% static 'core/models/kenney/city-suburban/building-type-h.glb' %}",
+    "{% static 'core/models/kenney/city-suburban/building-type-l.glb' %}",
+    "{% static 'core/models/kenney/city-suburban/building-type-o.glb' %}",
+    "{% static 'core/models/kenney/city-suburban/building-type-r.glb' %}",
+];
+const KENNEY_TREE_URLS = [
+    "{% static 'core/models/kenney/nature/tree_default.glb' %}",
+    "{% static 'core/models/kenney/nature/tree_oak.glb' %}",
+    "{% static 'core/models/kenney/nature/tree_pineTallA.glb' %}",
+    "{% static 'core/models/kenney/nature/tree_detailed.glb' %}",
+];
+const KENNEY_ROCK_URLS = [
+    "{% static 'core/models/kenney/nature/rock_largeA.glb' %}",
+    "{% static 'core/models/kenney/nature/rock_smallB.glb' %}",
+];
+
+let kenneyTemplates = { buildings: [], trees: [], rocks: [] };
+
+function loadKenneyEnvironment(callback) {
+    const loader = new THREE.GLTFLoader();
+    const allUrls = [
+        ...KENNEY_BUILDING_URLS.map(u => ({ url: u, bucket: 'buildings' })),
+        ...KENNEY_TREE_URLS.map(u => ({ url: u, bucket: 'trees' })),
+        ...KENNEY_ROCK_URLS.map(u => ({ url: u, bucket: 'rocks' })),
+    ];
+    let remaining = allUrls.length;
+    let failed = false;
+    allUrls.forEach(({ url, bucket }) => {
+        loader.load(
+            url,
+            (gltf) => {
+                kenneyTemplates[bucket].push(gltf.scene);
+                remaining--;
+                if (remaining <= 0) callback(!failed);
+            },
+            undefined,
+            () => {
+                failed = true;
+                remaining--;
+                if (remaining <= 0) callback(!failed);
+            }
+        );
+    });
+}
+
+function buildKenneyVillage(count) {
+    if (kenneyTemplates.buildings.length === 0) return;
+    const placed = [];
+    for (let i = 0; i < count; i++) {
+        const template = kenneyTemplates.buildings[Math.floor(Math.random() * kenneyTemplates.buildings.length)];
+        const model = template.clone(true);
+        model.scale.set(KENNEY_SCALE, KENNEY_SCALE, KENNEY_SCALE);
+        model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        model.updateMatrixWorld(true);
+
+        const box = new THREE.Box3().setFromObject(model);
+        const minX = box.min.x, maxX = box.max.x, minZ = box.min.z, maxZ = box.max.z;
+        const footprint = Math.max(maxX - minX, maxZ - minZ);
+
+        let x, z, ok, tries = 0;
+        do {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 8 + Math.random() * Math.min(arenaRadius - 20, 30);
+            x = Math.cos(angle) * dist; z = Math.sin(angle) * dist;
+            ok = placed.every(p => Math.hypot(x - p.x, z - p.z) > (p.r + footprint / 2 + 4));
+            tries++;
+        } while (!ok && tries < 20);
+        placed.push({ x, z, r: footprint / 2 });
+
+        const rotY = Math.floor(Math.random() * 4) * (Math.PI / 2);
+        model.rotation.y = rotY;
+        model.position.set(x, 0, z);
+        scene.add(model);
+
+        const cos = Math.cos(rotY), sin = Math.sin(rotY);
+        const corners = [[minX, minZ], [maxX, minZ], [minX, maxZ], [maxX, maxZ]]
+            .map(([lx, lz]) => [x + lx * cos - lz * sin, z + lx * sin + lz * cos]);
+        const xs = corners.map(c => c[0]), zs = corners.map(c => c[1]);
+        obstacles.push({
+            box: { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) },
+            mesh: { position: { x: x, z: z } },
+        });
+    }
+}
+
+function buildKenneyTrees(count) {
+    const pool = [...kenneyTemplates.trees, ...kenneyTemplates.rocks];
+    if (pool.length === 0) return;
+    for (let i = 0; i < count; i++) {
+        const template = pool[Math.floor(Math.random() * pool.length)];
+        const model = template.clone(true);
+        const scale = KENNEY_SCALE * (0.8 + Math.random() * 0.5);
+        model.scale.set(scale, scale, scale);
+        model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 14 + Math.random() * (arenaRadius - 22);
+        const x = Math.cos(angle) * dist, z = Math.sin(angle) * dist;
+        model.position.set(x, 0, z);
+        model.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(model);
+
+        obstacles.push({ mesh: { position: { x: x, z: z } }, radius: 0.9 * (scale / KENNEY_SCALE) });
+    }
+}
+
 function buildClouds() {
     const tex = makeCloudSprite();
     for (let i = 0; i < 10; i++) {
@@ -427,6 +635,46 @@ function buildClouds() {
         sprite.position.set((Math.random() - 0.5) * 140, 28 + Math.random() * 14, (Math.random() - 0.5) * 140);
         scene.add(sprite);
     }
+}
+
+// ---------- Real tactical-shooter town square map (CC0, purpose-built) ----------
+const SITE_A_MAP_URL = "{% static 'core/models/tactical-map/site-a.glb' %}";
+
+// Pieces whose name matches this are floor-level / decorative and should not
+// block movement or bullets - everything else (walls, gates, crates, the
+// fountain, sandbags, barriers...) gets a real collision box.
+const SITE_A_NO_COLLIDE = /ground|tile|floor|lamp|marker|tape|site|objective/i;
+
+function loadSiteAMap() {
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+        SITE_A_MAP_URL,
+        (gltf) => {
+            const map = gltf.scene;
+            map.position.set(0, 0, 0);
+            map.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+            scene.add(map);
+            map.updateMatrixWorld(true);
+
+            map.children.forEach((piece) => {
+                const name = piece.name || '';
+                if (SITE_A_NO_COLLIDE.test(name)) return;
+
+                const box = new THREE.Box3().setFromObject(piece);
+                if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+                const width = box.max.x - box.min.x;
+                const depth = box.max.z - box.min.z;
+                if (Math.max(width, depth) < 0.15 || Math.max(width, depth) > 14) return; // sanity bounds
+
+                obstacles.push({
+                    box: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
+                    mesh: { position: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 } },
+                });
+            });
+        },
+        undefined,
+        () => { /* map failed to load - the game still works, just without this map piece */ }
+    );
 }
 
 function makeGunModel() {
@@ -1189,7 +1437,12 @@ function updateHUD() {
 }
 
 function checkObstacleCollision(nx, nz) {
+    const pad = 0.4;
     for (const ob of obstacles) {
+        if (ob.box) {
+            if (nx > ob.box.minX - pad && nx < ob.box.maxX + pad && nz > ob.box.minZ - pad && nz < ob.box.maxZ + pad) return true;
+            continue;
+        }
         const dx = nx - ob.mesh.position.x, dz = nz - ob.mesh.position.z;
         if (Math.sqrt(dx * dx + dz * dz) < ob.radius + 0.5) return true;
     }
@@ -1202,8 +1455,8 @@ function updateMovement(delta) {
     const sprinting = !!keys['ShiftLeft'];
     const speed = (sprinting ? 9.5 : 5.8) * delta;
     let moveX = 0, moveZ = 0;
-    if (keys['KeyW']) moveZ += 1;
-    if (keys['KeyS']) moveZ -= 1;
+    if (keys['KeyW']) moveZ -= 1;
+    if (keys['KeyS']) moveZ += 1;
     if (keys['KeyA']) moveX -= 1;
     if (keys['KeyD']) moveX += 1;
     if (moveX === 0 && moveZ === 0) return;
