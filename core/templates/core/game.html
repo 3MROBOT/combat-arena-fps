@@ -191,7 +191,7 @@ let roundNumber = 0;
 
 let players = {};      // id -> {name, team, alive, mesh, nameSprite, target:{x,y,z,yaw}, health}
 let obstacles = [];
-let arenaRadius = 150;
+let arenaRadius = 75;
 
 let lastNetworkSend = 0;
 const NETWORK_SEND_INTERVAL = 0.07;
@@ -328,7 +328,8 @@ function init() {
         scene.add(ground);
 
         buildArenaWalls();
-        // procedural crates and trees removed - the real tactical map is now the only environment
+        // procedural crates removed
+        buildTrees(45);
         buildClouds();
 
         raycaster = new THREE.Raycaster();
@@ -645,7 +646,7 @@ function buildClouds() {
 
 // ---------- Real tactical-shooter town square map (CC0, purpose-built) ----------
 const SITE_A_MAP_URL = "{% static 'core/models/site-a.glb' %}";
-const SITE_A_SCALE = 3;
+const SITE_A_SCALE = 1;
 
 // Pieces whose name matches this are floor-level / decorative and should not
 // block movement or bullets - everything else (walls, gates, crates, the
@@ -657,32 +658,41 @@ function loadSiteAMap() {
     loader.load(
         SITE_A_MAP_URL,
         (gltf) => {
-            const map = gltf.scene;
-            map.position.set(0, 0, 0);
-            map.scale.set(SITE_A_SCALE, SITE_A_SCALE, SITE_A_SCALE);
-            map.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-            scene.add(map);
-            map.updateMatrixWorld(true);
-
-            map.children.forEach((piece) => {
-                const name = piece.name || '';
-                if (SITE_A_NO_COLLIDE.test(name)) return;
-
-                const box = new THREE.Box3().setFromObject(piece);
-                if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
-                const width = box.max.x - box.min.x;
-                const depth = box.max.z - box.min.z;
-                if (Math.max(width, depth) < 0.15 || Math.max(width, depth) > 14) return; // sanity bounds
-
-                obstacles.push({
-                    box: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
-                    mesh: { position: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 } },
-                });
-            });
+            placeSiteAInstance(gltf.scene, 0, 0, 0);
         },
         undefined,
         () => { /* map failed to load - the game still works, just without this map piece */ }
     );
+}
+
+function placeSiteAInstance(map, x, z, rotY) {
+    map.position.set(x, 0, z);
+    map.rotation.y = rotY;
+    map.scale.set(SITE_A_SCALE, SITE_A_SCALE, SITE_A_SCALE);
+    map.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(map);
+    map.updateMatrixWorld(true);
+
+    // sanity bounds scale WITH the map, or a big scaled map has all its real
+    // walls rejected as "too big" and the player walks straight through them
+    const minSize = 0.15 * SITE_A_SCALE;
+    const maxSize = 20 * SITE_A_SCALE;
+
+    map.children.forEach((piece) => {
+        const name = piece.name || '';
+        if (SITE_A_NO_COLLIDE.test(name)) return;
+
+        const box = new THREE.Box3().setFromObject(piece);
+        if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+        const width = box.max.x - box.min.x;
+        const depth = box.max.z - box.min.z;
+        if (Math.max(width, depth) < minSize || Math.max(width, depth) > maxSize) return;
+
+        obstacles.push({
+            box: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
+            mesh: { position: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 } },
+        });
+    });
 }
 
 function makeGunModel() {
