@@ -1473,8 +1473,8 @@ function updateMovement(delta) {
     const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
     moveX /= len; moveZ /= len;
     const yaw = yawObject.rotation.y;
-    const dx = (moveX * Math.cos(yaw) - moveZ * Math.sin(yaw)) * speed;
-    const dz = (moveX * -Math.sin(yaw) - moveZ * Math.cos(yaw)) * speed;
+    const dx = (moveX * Math.cos(yaw) + moveZ * Math.sin(yaw)) * speed;
+    const dz = (-moveX * Math.sin(yaw) + moveZ * Math.cos(yaw)) * speed;
     const nx = yawObject.position.x + dx, nz = yawObject.position.z + dz;
     if (Math.hypot(nx, nz) < arenaRadius - 1.5 && !checkObstacleCollision(nx, nz)) {
         yawObject.position.x = nx; yawObject.position.z = nz;
