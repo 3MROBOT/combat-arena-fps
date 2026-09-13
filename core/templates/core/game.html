@@ -191,7 +191,7 @@ let roundNumber = 0;
 
 let players = {};      // id -> {name, team, alive, mesh, nameSprite, target:{x,y,z,yaw}, health}
 let obstacles = [];
-let arenaRadius = 95;
+let arenaRadius = 75;
 
 let lastNetworkSend = 0;
 const NETWORK_SEND_INTERVAL = 0.07;
@@ -243,7 +243,6 @@ function makeCloudSprite() {
 }
 
 function init() {
-    loadSoldierModel();
     HUD.health = document.getElementById('healthFill');
     HUD.ammo = document.getElementById('ammoText');
     HUD.roundText = document.getElementById('roundText');
@@ -261,62 +260,9 @@ function init() {
     HUD.lobbyList = document.getElementById('lobbyList');
     HUD.lobbyRoomCode = document.getElementById('lobbyRoomCode');
 
-    scene = new THREE.Scene();
-    scene.background = makeSkyTexture();
-    scene.fog = new THREE.Fog(0xbfe3f5, 55, 140);
-
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    pitchObject = new THREE.Object3D();
-    pitchObject.add(camera);
-    yawObject = new THREE.Object3D();
-    yawObject.position.set(0, 1.7, 10);
-    yawObject.add(pitchObject);
-    scene.add(yawObject);
-
-    attachWeaponModel();
-
-    renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.getElementById('gameCanvas') });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-
-    const ambient = new THREE.AmbientLight(0xdfeeff, 0.9);
-    scene.add(ambient);
-    const sun = new THREE.DirectionalLight(0xfff3d6, 1.6);
-    sun.position.set(30, 45, 20);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -85; sun.shadow.camera.right = 85;
-    sun.shadow.camera.top = 85; sun.shadow.camera.bottom = -85;
-    scene.add(sun);
-
-    const groundGeo = new THREE.PlaneGeometry(arenaRadius * 2.4, arenaRadius * 2.4);
-    const groundMat = new THREE.MeshStandardMaterial({ map: makeGroundTexture(), roughness: 0.95 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    buildArenaWalls();
-    buildObstacles();
-    buildClouds();
-    // procedural low-poly trees removed - the real tactical map (loaded below) is much better looking
-
-    raycaster = new THREE.Raycaster();
-    clock = new THREE.Clock();
-
-    window.addEventListener('resize', onResize);
-    document.addEventListener('keydown', (e) => keys[e.code] = true);
-    document.addEventListener('keyup', (e) => keys[e.code] = false);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mousedown', onShoot);
-    document.addEventListener('mousedown', onCanvasClickRelock);
-    document.addEventListener('pointerlockchange', onPointerLockChange);
-    document.addEventListener('pointerlockerror', onPointerLockError);
-
+    // Wire up every button FIRST, before any 3D/model setup below - this way
+    // "ورود به اتاق" and every other control always works even if something
+    // in the graphics setup fails.
     document.getElementById('connectBtn').addEventListener('click', connectToRoom);
     document.getElementById('teamYarBtn').addEventListener('click', () => selectTeam('yar'));
     document.getElementById('teamEnemyBtn').addEventListener('click', () => selectTeam('enemy'));
@@ -328,12 +274,72 @@ function init() {
         sendNet({ type: 'start_game' });
     });
     document.getElementById('backToMenuBtn').addEventListener('click', exitToMenu);
-
+    window.addEventListener('resize', onResize);
+    document.addEventListener('keydown', (e) => keys[e.code] = true);
+    document.addEventListener('keyup', (e) => keys[e.code] = false);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mousedown', onShoot);
+    document.addEventListener('mousedown', onCanvasClickRelock);
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    document.addEventListener('pointerlockerror', onPointerLockError);
     updateHUD();
-    animate();
     startPeriodicResync();
 
-    try { loadSiteAMap(); } catch (e) { console.error('site-a map failed to load:', e); }
+    try {
+        loadSoldierModel();
+
+        scene = new THREE.Scene();
+        scene.background = makeSkyTexture();
+        scene.fog = new THREE.Fog(0xbfe3f5, 55, 140);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        pitchObject = new THREE.Object3D();
+        pitchObject.add(camera);
+        yawObject = new THREE.Object3D();
+        yawObject.position.set(0, 1.7, 10);
+        yawObject.add(pitchObject);
+        scene.add(yawObject);
+
+        attachWeaponModel();
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.getElementById('gameCanvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+
+        const ambient = new THREE.AmbientLight(0xdfeeff, 0.9);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xfff3d6, 1.6);
+        sun.position.set(30, 45, 20);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.left = -85; sun.shadow.camera.right = 85;
+        sun.shadow.camera.top = 85; sun.shadow.camera.bottom = -85;
+        scene.add(sun);
+
+        const groundGeo = new THREE.PlaneGeometry(arenaRadius * 2.4, arenaRadius * 2.4);
+        const groundMat = new THREE.MeshStandardMaterial({ map: makeGroundTexture(), roughness: 0.95 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        buildArenaWalls();
+        buildObstacles();
+        buildClouds();
+        buildTrees(45);
+
+        raycaster = new THREE.Raycaster();
+        clock = new THREE.Clock();
+
+        animate();
+        loadSiteAMap();
+    } catch (e) {
+        console.error('3D scene setup failed:', e);
+    }
 }
 
 function attachWeaponModel() {
@@ -640,7 +646,7 @@ function buildClouds() {
 
 // ---------- Real tactical-shooter town square map (CC0, purpose-built) ----------
 const SITE_A_MAP_URL = "{% static 'core/models/site-a.glb' %}";
-const SITE_A_SCALE = 1.6;
+const SITE_A_SCALE = 1;
 
 // Pieces whose name matches this are floor-level / decorative and should not
 // block movement or bullets - everything else (walls, gates, crates, the
