@@ -191,7 +191,7 @@ let roundNumber = 0;
 
 let players = {};      // id -> {name, team, alive, mesh, nameSprite, target:{x,y,z,yaw}, health}
 let obstacles = [];
-let arenaRadius = 75;
+let arenaRadius = 150;
 
 let lastNetworkSend = 0;
 const NETWORK_SEND_INTERVAL = 0.07;
@@ -328,9 +328,8 @@ function init() {
         scene.add(ground);
 
         buildArenaWalls();
-        buildObstacles();
+        // procedural crates and trees removed - the real tactical map is now the only environment
         buildClouds();
-        buildTrees(45);
 
         raycaster = new THREE.Raycaster();
         clock = new THREE.Clock();
@@ -646,7 +645,7 @@ function buildClouds() {
 
 // ---------- Real tactical-shooter town square map (CC0, purpose-built) ----------
 const SITE_A_MAP_URL = "{% static 'core/models/site-a.glb' %}";
-const SITE_A_SCALE = 1;
+const SITE_A_SCALE = 3;
 
 // Pieces whose name matches this are floor-level / decorative and should not
 // block movement or bullets - everything else (walls, gates, crates, the
