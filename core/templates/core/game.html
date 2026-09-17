@@ -296,7 +296,7 @@ function init() {
         pitchObject = new THREE.Object3D();
         pitchObject.add(camera);
         yawObject = new THREE.Object3D();
-        yawObject.position.set(0, 1.7, 10);
+        yawObject.position.set(0, 1.7, -10);
         yawObject.add(pitchObject);
         scene.add(yawObject);
 
@@ -678,20 +678,66 @@ function placeSiteAInstance(map, x, z, rotY) {
     const minSize = 0.15 * SITE_A_SCALE;
     const maxSize = 20 * SITE_A_SCALE;
 
-    map.children.forEach((piece) => {
-        const name = piece.name || '';
+    map.traverse((piece) => {
+        // Only generate collision boxes from actual mesh objects inside the map
+        if (!piece.isMesh) return;
+
+        // Apply filtering to individual mesh/piece names, not to the root/group node
+        const name = piece.name || (piece.parent && piece.parent !== map && piece.parent.name !== 'fountain-square-site-a' ? piece.parent.name : '') || '';
         if (SITE_A_NO_COLLIDE.test(name)) return;
 
         const box = new THREE.Box3().setFromObject(piece);
         if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+
+        // Conservative Y-axis check: only include geometry that intersects the player's ground-level movement space
+        // Player standing height is ~1.8-2.0m (ground at y=0, eye at y=1.7).
+        // Exclude geometry strictly above player height (e.g. elevated roofs/balconies) or strictly below ground.
+        if (box.min.y > 2.0 || box.max.y < 0.1) return;
+
         const width = box.max.x - box.min.x;
         const depth = box.max.z - box.min.z;
         if (Math.max(width, depth) < minSize || Math.max(width, depth) > maxSize) return;
 
-        obstacles.push({
-            box: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
-            mesh: { position: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 } },
-        });
+        const fullName = name + ' ' + (piece.parent && piece.parent !== map ? piece.parent.name || '' : '');
+        const isFreestandingArch = /freestanding-archway/i.test(fullName);
+        const isArchedPassage = /wall-arched-passage/i.test(fullName);
+
+        if (isFreestandingArch || isArchedPassage) {
+            // Arched passages and doorways: instead of a single full-width AABB that fills the open doorway,
+            // create two colliders for the physical left and right pillars/jambs based on inspected geometry
+            // (archway pillars: ~0.80m, wall jambs: ~0.82m), leaving the center passage completely open.
+            const pillarThickness = (isFreestandingArch ? 0.80 : 0.82) * SITE_A_SCALE;
+            if (width >= depth) {
+                const pW = Math.min(pillarThickness, width * 0.35);
+                const leftBox = { minX: box.min.x, maxX: box.min.x + pW, minZ: box.min.z, maxZ: box.max.z };
+                const rightBox = { minX: box.max.x - pW, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z };
+                obstacles.push({
+                    box: leftBox,
+                    mesh: { position: { x: (leftBox.minX + leftBox.maxX) / 2, z: (leftBox.minZ + leftBox.maxZ) / 2 } },
+                });
+                obstacles.push({
+                    box: rightBox,
+                    mesh: { position: { x: (rightBox.minX + rightBox.maxX) / 2, z: (rightBox.minZ + rightBox.maxZ) / 2 } },
+                });
+            } else {
+                const pD = Math.min(pillarThickness, depth * 0.35);
+                const firstBox = { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z + pD };
+                const secondBox = { minX: box.min.x, maxX: box.max.x, minZ: box.max.z - pD, maxZ: box.max.z };
+                obstacles.push({
+                    box: firstBox,
+                    mesh: { position: { x: (firstBox.minX + firstBox.maxX) / 2, z: (firstBox.minZ + firstBox.maxZ) / 2 } },
+                });
+                obstacles.push({
+                    box: secondBox,
+                    mesh: { position: { x: (secondBox.minX + secondBox.maxX) / 2, z: (secondBox.minZ + secondBox.maxZ) / 2 } },
+                });
+            }
+        } else {
+            obstacles.push({
+                box: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
+                mesh: { position: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 } },
+            });
+        }
     });
 }
 
@@ -1191,7 +1237,7 @@ function onRoundStart(data) {
         }
     });
 
-    const spawn = (data.spawns && data.spawns[myId]) || [0, 10];
+    const spawn = (data.spawns && data.spawns[myId]) || [0, -10];
     yawObject.position.set(spawn[0], 1.7, spawn[1]);
 
     updateHUD();
