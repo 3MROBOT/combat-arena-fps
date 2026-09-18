@@ -22,8 +22,8 @@ ROOMS = {}
 MAX_HEALTH = 150
 
 SPAWN_POINTS = {
-    'yar': [(-32, 32), (-40, 18), (-24, 42), (-44, 4), (-28, -10), (-38, -22)],
-    'enemy': [(32, -32), (40, -18), (24, -42), (44, -4), (28, 10), (38, 22)],
+    'yar': [(-4, -10), (-2, -10), (0, -10), (2, -10), (4, -10), (0, -12)],
+    'enemy': [(-4, 12), (-2, 12), (0, 12), (2, 12), (4, 12), (0, 14)],
 }
 
 
@@ -63,7 +63,7 @@ def team_counts(room):
 def spawn_for(room, player_id):
     player = room['players'].get(player_id)
     team = player['team'] if player else None
-    points = SPAWN_POINTS.get(team, [(0, 0)])
+    points = SPAWN_POINTS.get(team, [(0, -10)])
     ids_on_team = [pid for pid, p in room['players'].items() if p['team'] == team]
     try:
         idx = ids_on_team.index(player_id) % len(points)
